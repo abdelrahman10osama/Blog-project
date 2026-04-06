@@ -11,4 +11,7 @@ const blogSchema = new mongoose.Schema({
   },
 });
 
+
+blogSchema.index({ title: "text" });
+
 module.exports = mongoose.model("Blog", blogSchema);
