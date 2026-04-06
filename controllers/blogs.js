@@ -4,23 +4,67 @@ const User = require("../models/users");
 
 // GET all blogs
 router.get("/", async (req, res) => {
-  const search = req.query.search;
+  try {
+    const { search, author, sortBy, order, page = 1, limit = 10 } = req.query;
 
-  let filter = {};
 
-  if (search) {
-    filter.title = {
-      $regex: search,
-      $options: "i", 
-    };
+    let filter = {};
+
+    if (search) {
+      filter.title = {
+        $regex: search,
+        $options: "i",
+      };
+    }
+
+    if (author) {
+      filter.author = {
+        $regex: author,
+        $options: "i",
+      };
+    }
+
+
+    let sort = {};
+
+if (sortBy) {
+  if (sortBy !== "likes") {
+    return res.status(400).json({
+      error: "invalid sort field",
+    });
   }
 
-  const blogs = await Blog.find(filter).populate("user", {
-    username: 1,
-    name: 1,
-  });
+  sort = {
+    [sortBy]: order === "asc" ? 1 : -1,
+  };
+}
 
-  res.json(blogs);
+    
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    const total = await Blog.countDocuments(filter);
+
+    const blogs = await Blog.find(filter)
+      .populate("user", { username: 1, name: 1 })
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNumber);
+
+    res.json({
+      data: blogs,
+      pagination: {
+        currentPage: pageNumber,
+        pageSize: limitNumber,
+        totalBlogs: total,
+        totalPages: Math.ceil(total / limitNumber),
+      },
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: "something went wrong" });
+  }
 });
 
 // LIKE blog
